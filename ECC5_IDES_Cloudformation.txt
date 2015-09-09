@@ -1,0 +1,72 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : " ECC 6 IDES AWS Creation",
+
+  "Parameters" : {
+					"KeyName" : {
+					  "Description" : "Name of an existing Amazon EC2 key pair for RDP access",
+					  "Type" : "String"
+								},
+					
+					"InstanceType" : {
+					  "Description" : "Amazon EC2 instance type",
+					  "Type" : "String",
+					  "Default" : "m1.xlarge",
+					  "AllowedValues" : [ "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "c1.medium", "c1.xlarge"]
+									 }, 
+	
+					"Hostname" : {
+					"Description" : "Setting the hostname for the instance",
+					"Type" : "String"
+								 }
+				},
+
+					  "Mappings" : {
+						"RegionMap" : { 
+							"eu-west-1"      : { "AMI" : "ami-620eef15", "PTAWSSAP11" : "eu-west-1a" }
+						}
+								},
+				
+
+
+  "Resources" : {
+    "Ec2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "AvailabilityZone" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "PTAWSSAP11" ]},
+        "KeyName" : { "Ref" : "KeyName" },
+		"InstanceType" : {"Ref" : "InstanceType" },
+        "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "AMI" ]},
+		"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+            "<script>\n",
+			"net user administrator password", "\n",
+			"echo 54.247.104.104 puppet01.ptawssapuk.com >>%SYSTEMDRIVE%\\Windows\\System32\\Drivers\\Etc\\Hosts", "\n",
+			"mkdir c:\\temp", "\n",
+			"echo msiexec /qn /i https://s3-eu-west-1.amazonaws.com/cloud-formation/puppet-enterprise-3.1.0.msi PUPPET_MASTER_SERVER=PTAWSpuppet.PTAWSsapuk.com PUPPET_AGENT_CERTNAME=PTAWSsap11.ptawssapuk.com >c:\\temp\\Puppet_Client.bat", "\n",
+			"echo netdom computername %COMPUTERNAME% /add:%COMPUTERNAME%.ptawssapuk.com >>c:\\temp\\Puppet_Client.bat", "\n",
+			"echo netdom computername %COMPUTERNAME% /makeprimary:%COMPUTERNAME%.ptawssapuk.com >>c:\\temp\\Puppet_Client.bat", "\n",
+			"echo netdom renamecomputer %COMPUTERNAME% /newname:PTAWSSAP110 /force /reboot:5 >>c:\\temp\\Puppet_Client.bat", "\n",
+			"c:\\temp\\Puppet_Client.bat", "\n",
+            "</script>"
+        ]]}}
+        }
+		}
+		},
+	
+  "Outputs" : {
+    "InstanceId" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "Ec2Instance" }
+    },
+    "PublicIP" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicIp" ] }
+    },
+    "PublicDNS" : {
+      "Description" : "Public DNSName of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicDnsName" ] }
+    }
+  }
+
+}
